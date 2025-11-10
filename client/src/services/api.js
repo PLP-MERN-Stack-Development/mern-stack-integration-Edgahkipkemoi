@@ -4,7 +4,7 @@ import axios from 'axios';
 
 // Create axios instance with base URL
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
+  baseURL: import.meta.env.VITE_API_URL || '/api',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -41,11 +41,11 @@ api.interceptors.response.use(
 // Post API services
 export const postService = {
   // Get all posts with optional pagination and filters
-  getAllPosts: async (page = 1, limit = 10, category = null) => {
-    let url = `/posts?page=${page}&limit=${limit}`;
-    if (category) {
-      url += `&category=${category}`;
-    }
+  getAllPosts: async (params = {}) => {
+    const { page = 1, limit = 10, search = '', category = '', sortBy = 'createdAt', sortOrder = 'desc' } = params;
+    let url = `/posts?page=${page}&limit=${limit}&sortBy=${sortBy}&sortOrder=${sortOrder}`;
+    if (search) url += `&search=${encodeURIComponent(search)}`;
+    if (category) url += `&category=${category}`;
     const response = await api.get(url);
     return response.data;
   },
@@ -58,13 +58,29 @@ export const postService = {
 
   // Create a new post
   createPost: async (postData) => {
-    const response = await api.post('/posts', postData);
+    const formData = new FormData();
+    Object.keys(postData).forEach(key => {
+      if (postData[key] !== null && postData[key] !== undefined) {
+        formData.append(key, postData[key]);
+      }
+    });
+    const response = await api.post('/posts', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
     return response.data;
   },
 
   // Update an existing post
   updatePost: async (id, postData) => {
-    const response = await api.put(`/posts/${id}`, postData);
+    const formData = new FormData();
+    Object.keys(postData).forEach(key => {
+      if (postData[key] !== null && postData[key] !== undefined) {
+        formData.append(key, postData[key]);
+      }
+    });
+    const response = await api.put(`/posts/${id}`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
     return response.data;
   },
 
@@ -74,15 +90,9 @@ export const postService = {
     return response.data;
   },
 
-  // Add a comment to a post
-  addComment: async (postId, commentData) => {
-    const response = await api.post(`/posts/${postId}/comments`, commentData);
-    return response.data;
-  },
-
-  // Search posts
-  searchPosts: async (query) => {
-    const response = await api.get(`/posts/search?q=${query}`);
+  // Get posts by user
+  getPostsByUser: async (userId, page = 1, limit = 10) => {
+    const response = await api.get(`/posts/user/${userId}?page=${page}&limit=${limit}`);
     return response.data;
   },
 };
@@ -95,9 +105,60 @@ export const categoryService = {
     return response.data;
   },
 
+  // Get single category
+  getCategory: async (id) => {
+    const response = await api.get(`/categories/${id}`);
+    return response.data;
+  },
+
   // Create a new category
   createCategory: async (categoryData) => {
     const response = await api.post('/categories', categoryData);
+    return response.data;
+  },
+
+  // Update category
+  updateCategory: async (id, categoryData) => {
+    const response = await api.put(`/categories/${id}`, categoryData);
+    return response.data;
+  },
+
+  // Delete category
+  deleteCategory: async (id) => {
+    const response = await api.delete(`/categories/${id}`);
+    return response.data;
+  },
+};
+
+// Comment API services
+export const commentService = {
+  // Get comments for a post
+  getCommentsByPost: async (postId, page = 1, limit = 10) => {
+    const response = await api.get(`/comments/post/${postId}?page=${page}&limit=${limit}`);
+    return response.data;
+  },
+
+  // Create a new comment
+  createComment: async (commentData) => {
+    const response = await api.post('/comments', commentData);
+    return response.data;
+  },
+
+  // Update comment
+  updateComment: async (id, commentData) => {
+    const response = await api.put(`/comments/${id}`, commentData);
+    return response.data;
+  },
+
+  // Delete comment
+  deleteComment: async (id) => {
+    const response = await api.delete(`/comments/${id}`);
+    return response.data;
+  },
+
+  // Toggle comment like
+  toggleCommentLike: async (id) => {
+    const response = await api.post(`/comments/${id}/like`);
     return response.data;
   },
 };
@@ -113,9 +174,9 @@ export const authService = {
   // Login user
   login: async (credentials) => {
     const response = await api.post('/auth/login', credentials);
-    if (response.data.token) {
-      localStorage.setItem('token', response.data.token);
-      localStorage.setItem('user', JSON.stringify(response.data.user));
+    if (response.data.success && response.data.data.token) {
+      localStorage.setItem('token', response.data.data.token);
+      localStorage.setItem('user', JSON.stringify(response.data.data.user));
     }
     return response.data;
   },
@@ -130,6 +191,18 @@ export const authService = {
   getCurrentUser: () => {
     const user = localStorage.getItem('user');
     return user ? JSON.parse(user) : null;
+  },
+
+  // Get user profile
+  getProfile: async () => {
+    const response = await api.get('/auth/me');
+    return response.data;
+  },
+
+  // Update user profile
+  updateProfile: async (profileData) => {
+    const response = await api.put('/auth/profile', profileData);
+    return response.data;
   },
 };
 

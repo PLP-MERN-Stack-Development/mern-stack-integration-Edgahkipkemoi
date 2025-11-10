@@ -1,6 +1,6 @@
 // Post.js - Mongoose model for blog posts
 
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const PostSchema = new mongoose.Schema(
   {
@@ -71,12 +71,12 @@ PostSchema.pre('save', function (next) {
   if (!this.isModified('title')) {
     return next();
   }
-  
+
   this.slug = this.title
     .toLowerCase()
     .replace(/[^\w ]+/g, '')
     .replace(/ +/g, '-');
-    
+
   next();
 });
 
@@ -97,4 +97,4 @@ PostSchema.methods.incrementViewCount = function () {
   return this.save();
 };
 
-module.exports = mongoose.model('Post', PostSchema); 
+export default mongoose.model('Post', PostSchema); 
